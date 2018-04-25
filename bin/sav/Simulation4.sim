@@ -1,0 +1,12 @@
+500,500,250,0,0
+food,15,219,5.0,0,false,false,false,food
+
+food,113,368,5.0,1,false,false,false,food
+
+ant,239,246,5.0,2,false,false,false,student
+
+ant,36,464,5.0,3,false,false,true,fatigued
+
+ant,333,362,5.0,4,false,false,false,student
+
+ant,243,427,5.0,5,false,false,false,fast_walker

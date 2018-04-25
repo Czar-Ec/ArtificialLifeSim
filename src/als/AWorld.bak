@@ -1,0 +1,931 @@
+package als;
+
+import java.io.FileWriter;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Optional;
+import java.util.Random;
+
+import als.AnEntity.Direction;
+
+//import javax.swing.JList;
+//import javax.swing.JOptionPane;
+
+import als.AnEntity.traits;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
+import javafx.scene.Scene;
+import javafx.scene.control.Alert;
+import javafx.scene.control.Alert.AlertType;
+import javafx.scene.control.ButtonType;
+import javafx.scene.control.ListView;
+import javafx.scene.layout.StackPane;
+import javafx.stage.Stage;
+
+public class AWorld {
+	
+	//attributes
+	private int maxEnt, //max entity in the world
+	worldX, worldY, //world size
+	entityCount; //counts the number of entities
+	
+	//arraylist to store the entities
+	ArrayList<AnEntity> entityList = new ArrayList<AnEntity>();
+	
+	//rand
+	Random r;
+
+	AWorld(int _worldX, int _worldY)
+	{
+		//set attributes
+		setX(_worldX);
+		setY(_worldY);
+		setMaxEnt(_worldX, _worldY);
+		
+		//entity array
+		entityList = new ArrayList<AnEntity>();
+	}
+	
+	//WORLD X SETTER GETTER
+	public void setX(int _worldX)
+	{
+		worldX = _worldX;
+	}
+	
+	public int getX()
+	{
+		return worldX;
+	}
+	
+	//WORLD Y SETTER GETTER
+	public void setY(int _worldY)
+	{
+		worldY = _worldY;
+	}
+	
+	public int getY()
+	{
+		return worldY;
+	}
+	
+	//MAX ENT SETTER GETTER
+	public void setMaxEnt(int _worldX, int _worldY)
+	{
+		int temp1 = _worldX / 100;
+		int temp2 = _worldY / 100;
+		
+		//prevents 0 errors
+		if(temp1 <= 0)
+		{
+			temp1 = 1;
+		}
+		
+		if(temp2 <= 0)
+		{
+			temp2 = 1;
+		}
+		
+		maxEnt = (temp1 * temp2) * 10;
+	}
+	
+	public int getMaxEnt()
+	{
+		return maxEnt;
+	}
+	
+	//ENTITY COUNT GETTER
+	public int getEntityCount()
+	{
+		return entityCount;
+	}
+	
+	//function t add new entites
+	public void addEntity(String _species)
+	{
+		//rand function to find random x and y value
+		r = new Random();
+		
+		//checks to make sure the maxEntities is not exceeded
+		if (entityList.size() < maxEnt)
+		{
+			//temporary variables
+			int _hPos, _vPos;
+			
+			//do while loop will keep looping until a valid position is found
+			//if getEntityAt function returns a positive value, valid position is found
+			do
+			{
+				/*the equation for the range:
+				 * r.nextInt(max - min + 1) + min
+				 */
+				 
+				_hPos = r.nextInt(worldX - 30);
+				
+				_vPos = r.nextInt((worldY  - 100)) + 70;
+				
+			}while(getEntityAt(_hPos, _vPos) >= 0);
+			
+			//if the species is food, make a new food entity
+			if(_species.equals("food"))
+			{
+				//makes the food entity using the Food subclass
+				Food food = new Food(_hPos, _vPos, entityCount, this);
+				
+				//add to the list
+				entityList.add(food);
+			}
+			
+			//if the species is obstacle, make an obstacle entity
+			else if(_species.equals("obstacle"))
+			{
+				//makes the obstacle entity using the Obstacle subclass
+				Obstacle obstacle = new Obstacle(_hPos, _vPos, entityCount, this);
+				
+				//add to the list
+				entityList.add(obstacle);
+			}
+			
+			//everything else that isnt food or obstacle
+			else
+			{
+				//makes the lifeform using the Lifeform subclass
+				Lifeform species = new Lifeform(_species, _hPos, _vPos, 5, entityCount, this);
+				
+				//add to the list
+				entityList.add(species);
+			}
+			
+			//increment the number of entities
+			entityCount++;
+		}
+		
+		else
+		{
+			//message to notify user that the max entities is exceeded
+			Alert error = new Alert(AlertType.ERROR);
+			error.setHeaderText("Maximum entities allowed exceeded");
+			error.setContentText("Max Entities reached: " + maxEnt);
+			error.showAndWait();
+		}
+	}
+	
+	public int getEntityAt(int _hPos, int _vPos)
+	{
+		int var = -1;
+		
+		//check through all the entities in the entityList array
+		for(int i = 0; i < entityList.size(); i++)
+		{
+			//check if the entity is null, prevents crashes
+			if(entityList.get(i) != null)
+			{
+				//nested loop to check a region around the hPos and vPos
+				for(int x = _hPos - 30; x < _hPos + 30; x++)
+				{
+					for(int y = _vPos - 30; y < _vPos + 30; y++)
+					{
+						if(entityList.get(i).checkPos(x, y))
+						{
+							var = i;
+						}
+					}
+				}
+			}
+		}
+		
+		return var;
+	}
+	
+	//display all entities to screen
+	public void showAllEntities(GUI gui)
+	{
+		for(int i = 0; i < entityList.size(); i++)
+		{
+			entityList.get(i).displayEntity(gui);
+		}
+	}
+	
+	//lists all non food and obstacle entities
+	public void listAllEntities()
+	{
+		//arraylist to store all the strings to be returned
+		ArrayList<String> str = new ArrayList<String>();
+		
+		//loop to get the details of the entities
+		for(int i = 0; i < entityList.size(); i++)
+		{
+			//skip if the entity is null
+			if(entityList.get(i) == null)
+				continue;
+			
+			//only prints lifeforms
+			if(!entityList.get(i).getSpecies().equals("food") && !entityList.get(i).getSpecies().equals("obstacle"))
+			{
+				str.add(entityList.get(i).toString(this));
+			}
+		}
+		
+		//convert array list to normal array
+		String ent[] = new String[entityList.size()];
+		ent = str.toArray(ent);
+
+		//observes the arraylist str
+		ObservableList<String> strList = FXCollections.observableArrayList(str);
+		//listView
+		ListView<String> list = new ListView<String>(strList);
+		
+		Alert msg = new Alert(AlertType.INFORMATION);
+		msg.setHeaderText("Entity List");
+		
+		//check if there are actually entities
+		if(ent.length > 0)
+		{
+			//pane to show the listView
+            StackPane listWindow = new StackPane();
+            listWindow.getChildren().add(list);
+            
+            //scene
+            Scene listViewScene = new Scene(listWindow, 750, 400);
+            
+            //stage
+            Stage listViewStage = new Stage();
+            listViewStage.setTitle("Entity List");
+            listViewStage.setScene(listViewScene);
+            
+            //show to screen
+            listViewStage.show();
+		}
+		else
+		{
+			msg.setContentText("No entities exist in the world");
+		}
+	}
+	
+	///////////////////////////////////////////////////////////////////////////////////////////////////////
+	///////////////////////////////////////////////////////////////////////////////////////////////////////
+	//SIMULATION FUNCTIONS
+	///////////////////////////////////////////////////////////////////////////////////////////////////////
+	///////////////////////////////////////////////////////////////////////////////////////////////////////
+	public void simulate(Double time)
+	{
+		//order of simulation
+		
+		//use the time as a value to respawn food
+		
+		//grabFood() - check if there is food nearby
+		//	¬eatFood() - eat food if it is nearby
+		//	¬ 	//¬ add energy to entity
+		//	¬poisoned() - was that food poisonous?
+		
+		//avoid() - avoid obstacles and other entities that isnt food
+		
+		//findFood(smellRange) - check if there is food in the smellRange
+		//	¬move(moveSpd) - move towards the food unless it is agoraphobic or a student
+		//	¬useEnergy(energy) - entity will use up energy
+		
+		//checkEnergy(energy) - check if entity still has energy
+		//	¬setDeath() - entity dies if it has no energy left
+		
+		//loop through all entities
+		for(int i = 0; i < entityList.size(); i++)
+		{
+			//skip if entity is null
+			if(entityList.get(i).equals(null))
+			{continue;}
+			
+			
+			//entity
+			AnEntity entity = entityList.get(i);
+			
+			//get this entity's name
+			String species = entity.getSpecies();
+			boolean dead = entity.isKill();
+			boolean hunting = entity.getHunting();
+			
+			//if not food or obstacle and not dead
+			if(!(species.equals("food") || species.equals("obstacle") || dead))
+			{
+				//all lifeform entities eat
+				grabFood(entity);
+				
+				//check for student traits
+				//students only move randomly
+				traits student = traits.student;
+				if(entity.seeTrait().equals(student))
+				{
+					//avoid obstacles
+					avoid(entity);
+					
+					//get random direction and move towards it
+					entity.setDirection(Direction.getRandom());
+					move(entity);
+				}
+				
+				//check for agoraphobic traits and student traits
+				//agoraphobics do not move, students randomly move
+				traits agoraphobic = traits.agoraphobic;
+				if(!entity.seeTrait().equals(agoraphobic) && !entity.seeTrait().equals(student))
+				{
+					//smell food, if no food then
+					//random moving, students can only do random moving but still avoids obstacles
+					
+					avoid(entity);
+					
+					//use the hunting value from entity
+					hunting = findFood(entity);
+					
+					//if the entity does not see food, get random direction every 10 steps
+					if(!hunting && (entity.getMoveCount() % 10 == 0))
+					{
+						//random dir
+						entity.setDirection(Direction.getRandom());
+					}
+										
+					move(entity);
+				}
+				
+				//use energy regardless of move or not
+				useEnergy(entity, "idle");
+				
+				checkEnergy(entity);
+			}
+			
+			//spawn food around a food source obstacle
+			
+		}
+		
+	}
+	
+	//entity looks around to see if it can grab food
+	public void grabFood(AnEntity entity)
+	{
+		//get current entity's coordinates
+		int x = entity.getHPos();
+		int y = entity.getVPos();
+		
+		//setting up min and max area checks
+		int minX = x - 40;
+		if (minX < 0)
+		{
+			minX = 0;
+		}
+		
+		int maxX = x + 40;
+		if(maxX > worldX)
+		{
+			maxX = worldX;
+		}
+		
+		int minY = y - 40;
+		if(minY < 0)
+		{
+			minY = 0;
+		}
+		
+		int maxY = y + 40;
+		if(maxY > worldY)
+		{
+			maxY = worldY;
+		}
+		
+		//ensures entity doesnt eat everything
+		boolean hasEaten = false;
+		
+		//check for food
+		for(int i = minX; i < maxX; i++)
+		{
+			for(int j = minY; j < maxY; j++)
+			{
+				//exit loop if entity has eaten
+				if(hasEaten)
+				{
+					j = maxY;
+					continue;
+				}
+				
+				//check around the entity if it can grab food
+				hasEaten = eat(entity, i, j);
+			}
+			
+			//exit loop
+			if(hasEaten)
+			{
+				i = maxX;
+				continue;
+			}
+		}
+		
+	}
+	
+	//eating food
+	public boolean eat(AnEntity entity, int x, int y)
+	{
+		//boolean to be returned
+		boolean var = false;
+		
+		//loop through all the entities
+		for(int i = 0; i < entityList.size(); i++)
+		{
+			//check if the entity is null/empty
+			if(!entityList.get(i).equals(null))
+			{
+				//check the position if the entity exists there
+				if(entityList.get(i).checkPos(x, y))
+				{
+					//check if the entity being scanned is food
+					if(entityList.get(i).getSpecies().equals("food"))
+					{
+						var = true;
+						//check if the food was poisonous
+						if(entityList.get(i).poisonCheck())
+						{
+							//R.I.P.
+							entity.setDeath();
+						}
+						//if not poisonous
+						else
+						{
+							//add energy
+							double energy = entity.getEnergy();
+							entity.setEnergy(energy + 5);
+							//no longer hunting
+							entity.setHunting(false);
+						}
+						
+						//remove the food
+						entityList.remove(i);
+					}
+				}
+			}
+		}
+		
+		return var;
+	}
+	
+	public void avoid(AnEntity entity)
+	{
+		//find obstacle coordinates using scan
+		
+		//move(entity);
+	}
+	
+	public boolean findFood(AnEntity entity)
+	{
+		//get entity coordinates
+		int x = entity.getHPos();
+		int y = entity.getVPos();
+		
+		//get entity smell range
+		int smellRange = entity.getSmellRange();
+		
+		//get smell range area
+		int minX = x - smellRange;
+		if(minX < 0)
+		{
+			minX = 0;
+		}
+		
+		int maxX = x + smellRange;
+		if(maxX > worldX)
+		{
+			maxX = worldX;
+		}
+		
+		int minY = y - smellRange;
+		if(minY < 0)
+		{
+			minY = 0;
+		}
+		
+		int maxY = y + smellRange;
+		if(maxY > worldY)
+		{
+			maxY = worldY;
+		}
+		
+		//same function as grabFood but with smellRange and doesnt eat the food
+		//find food coordinate and move towards it while avoiding obstacles
+		
+		//if food is found
+		boolean targetLock = false;
+		traits student = traits.student;
+		
+		//check to see if the entity has moved
+		boolean hasSmelt = false;
+		
+		for(int i = minX; i < maxX; i++)
+		{
+			for(int j = minY; j < maxY; j++)
+			{
+				//find food first, unless it is a student
+				if(!entity.seeTrait().equals(student))
+				{
+					targetLock = smellFood(entity, i, j);
+					
+					//if food is found, move towards it
+					if(targetLock)
+					{
+						//exit loop
+						j = maxY;
+					}
+					
+					targetLock = smellFood(entity, i, j);
+				}			
+				
+			}
+			
+			if(targetLock)
+			{
+				//exit loop
+				i = maxX;
+			}	
+		}
+		
+		//return value if food found
+		return targetLock;
+	}
+	
+	public boolean smellFood(AnEntity entity, int x, int y)
+	{
+		boolean hasSmelt = false;
+		
+		//loops through all entities
+		for(int i = 0; i < entityList.size(); i++)
+		{
+			//check if the entity is null
+			if(!entityList.get(i).equals(null))
+			{
+				//check if the entity being looked at x, y
+				if(entityList.get(i).checkPos(x, y))
+				{
+					//check if entity is food
+					if(entityList.get(i).getSpecies().equals("food"))
+					{
+						//report that this coordinate is destination coord
+						//smelt something
+						entity.setHunting(true);
+						
+						/*int entY = entity.getVPos();
+						int entX = entity.getHPos();
+						
+						if((entY > y + 5) && hasSmelt)
+						{
+							entity.setDirection(Direction.N);
+							hasSmelt = true;
+						}
+						if((entY < y - 5) && hasSmelt)
+						{
+							entity.setDirection(Direction.S);
+							hasSmelt = true;
+						}
+					
+						if((entX > x - 5) && hasSmelt)
+						{
+							entity.setDirection(Direction.E);
+							hasSmelt = true;
+						}
+						if((entX < x + 5) && hasSmelt)
+						{
+							entity.setDirection(Direction.W);
+							hasSmelt = true;
+						}
+						else
+						{
+							if(entity.getMoveCount() % 20 == 0)
+							{
+								Direction rand = Direction.getRandom();
+								entity.setDirection(rand);
+								hasSmelt = true;
+							}
+						}*/
+						
+						hasSmelt = true;
+					}
+				}
+			}
+		}
+		
+		return hasSmelt;
+	}
+
+	public void useEnergy(AnEntity entity, String activity)
+	{
+		//2 ways of using energy, being alive just uses 0.05
+		//moving will depend on the animal trait
+		double energy = entity.getEnergy();
+		double energyUse = entity.getEnergyUse();
+		traits tired = traits.fatigued;
+		traits fit = traits.energy_efficient;
+		
+		//moving used energyUse
+		if(activity.equals("move"))
+		{
+			//double energy use if fatigued
+			if(entity.seeTrait().equals(tired))
+			{
+				entity.setEnergy(energy - (energyUse * 2)) ;
+			}
+			//half energy use if energy_efficient
+			else if(entity.seeTrait().equals(fit))
+			{
+				entity.setEnergy(energy - (energyUse / 2));
+			}
+			//normal energy use
+			else
+			{
+				entity.setEnergy(energy - energyUse);
+			}
+		}
+		//being idle only uses 1/5 of energy use
+		//even if entity moved it will still use this energy for being alive
+		else
+		{
+			//double energy use if fatigued
+			if(entity.seeTrait().equals(tired))
+			{
+				entity.setEnergy(energy - ((energyUse * 2) / 5)) ;
+			}
+			//half energy use if energy_efficient
+			else if(entity.seeTrait().equals(fit))
+			{
+				entity.setEnergy(energy - ((energyUse / 2) / 5));
+			}
+			//normal energy use
+			else
+			{
+				entity.setEnergy(energy - (energyUse / 5));
+			}
+		}
+		
+	}
+	
+	public void checkEnergy(AnEntity entity)
+	{
+		//check if energy is less than 0, if it is  entity will die
+		if(entity.getEnergy() <= 0)
+		{
+			entity.setDeath();
+		}		
+	}
+	
+	//////////
+	//MOVEMENT
+	//////////
+	
+	public void move(AnEntity entity)
+	{
+		//check if on the edge of screen
+		//increment entity moveCount
+		//move towards direction
+		
+		//get entity values
+		int x = entity.getHPos();
+		int y = entity.getVPos();
+		int moveSpd = entity.getMoveSpd();
+		Direction entD = entity.seeDirection();
+		
+		switch(entD)
+		{
+			//move north	
+			case N:
+				//make sure the entity doesn't walk off screen
+				if(y - moveSpd > 60)
+				{
+					entity.setVPos(y - moveSpd);
+					//use energy, because it moved
+					useEnergy(entity, "move");
+				}
+				//keeps the entity in the world
+				else
+				{
+					//set the entity at the border and get a random direction 
+					//and randomise the direction every 10 moves
+					entity.setVPos(60);
+					entity.setDirection(Direction.getRandom());
+				}
+				break;
+				
+			//move south
+			case S:
+				if(y + moveSpd < worldY - 30)
+				{
+					entity.setVPos(y + moveSpd);
+					useEnergy(entity, "move");
+				}
+				else
+				{
+					entity.setVPos(worldY-30);
+					entity.setDirection(Direction.getRandom());
+				}
+				break;
+			
+			//move east
+			case E:
+				if(x + moveSpd < worldX - 30)
+				{
+					entity.setHPos(x + moveSpd);
+					useEnergy(entity, "move");
+				}
+				else
+				{
+					entity.setHPos(worldX-30);
+					entity.setDirection(Direction.getRandom());
+				}
+				break;
+				
+			//move west
+			case W:
+				if(x - moveSpd > 0)
+				{
+					entity.setHPos(x - moveSpd);
+					useEnergy(entity, "move");
+				}
+				else
+				{
+					entity.setHPos(0);
+					entity.setDirection(Direction.getRandom());
+				}
+				break;
+				
+			default:
+				
+				break;				
+		}
+		
+		int moveCount = entity.getMoveCount();
+		entity.setMoveCount(moveCount+1);
+	}
+	
+	//END OF SIMULATION FUNCTIONS
+	///////////////////////////////////////////////////////////////////////////////////////////////////////
+	///////////////////////////////////////////////////////////////////////////////////////////////////////
+	
+	
+	//saving the simulation data
+	public void saveFile(
+			ArrayList<AWorld> worldList, //save the world
+			int worldNum, //get the world number
+			boolean hasFilename, //check to see if the save file has been set a name
+			String fileName //filename for the save
+			)
+	{
+		//file io function
+		FileWriter writer = null;
+		
+		//checking hasFilename
+		if(hasFilename)
+		{
+			try {
+				writer = new FileWriter(fileName);
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+		else
+		{
+			//true means append
+			try {
+				writer = new FileWriter("sav/Simulation" + worldNum + ".sim", true);
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+		
+		//saves the world data
+		int worldX = worldList.get(worldNum).getX();
+		int worldY = worldList.get(worldNum).getY();
+		int maxEnt = worldList.get(worldNum).getMaxEnt();
+		
+		//save the world's size
+		try {
+			writer.write(worldX + "," + worldY + "," + maxEnt + "," + 0 + "," + 0);
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+				
+		//saving the entities
+		for(int i = 0; i < entityList.size(); i++)
+		{
+			//line separator so each file is separated by a line
+			try {
+				writer.write(System.getProperty("line.separator"));
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			
+			//check if entity is null
+			if(!entityList.get(i).equals(null))
+			{
+				//get the entity's values
+				String _species = entityList.get(i).getSpecies();
+				int _hPos = entityList.get(i).getHPos();
+				int _vPos = entityList.get(i).getVPos();
+				double _energy = entityList.get(i).getEnergy();
+				int _uniqueID = entityList.get(i).getUID();
+				boolean _dead = entityList.get(i).isKill();
+				boolean _poisonous = entityList.get(i).poisonCheck();
+				boolean _albino = entityList.get(i).albinoCheck();
+				traits _t = entityList.get(i).seeTrait();
+				
+				//write to file
+				try {
+					writer.write(_species + "," + _hPos + "," + _vPos + "," + 
+							_energy + "," + _uniqueID + "," + _dead + "," + 
+							_poisonous + "," + _albino + "," + _t + "\n");
+				} catch (IOException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			}
+		}
+		
+		//finish writing to file
+		try {
+			writer.close();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
+	
+	public void loadEntity(String _species, int _hPos, int _vPos, double _energy,
+			int _uniqueID, boolean _dead, boolean _poisonous, boolean _albino, traits _t)
+	{
+		//check what entity is being loaded
+		if(_species.equals("food"))
+		{
+			Food food = new Food(_hPos, _vPos, _uniqueID, this, _poisonous);
+			
+			entityList.add(food);
+		}
+		
+		else if(_species.equals("obstacle"))
+		{
+			Obstacle obstacle = new Obstacle(_hPos, _vPos, _uniqueID, this);
+			
+			entityList.add(obstacle);
+		}
+		
+		else
+		{
+			Lifeform species = new Lifeform(_species, _hPos, _vPos, _energy, _uniqueID, 
+			this, _dead , _albino, _t);
+			
+			entityList.add(species);
+		}
+		
+		//increment entity count
+		entityCount++;
+	}
+	
+	public void removeEntity()
+	{	
+		//make sure that there are entities to delete in the first place
+		if(entityList.size() > 0)
+		{
+			//set up alert message
+			Alert remove = new Alert(AlertType.CONFIRMATION);
+			remove.setTitle("Remove entity");
+			remove.setHeaderText("Remove latest entity?: ");
+			remove.setContentText(entityList.get(entityCount-1).toString(this));
+			//buttons
+			ButtonType yes = new ButtonType("Yes");
+			ButtonType no = new ButtonType("No");
+			
+			
+			//bind butons
+			remove.getButtonTypes().setAll(yes, no);
+			
+			//listener
+			Optional<ButtonType> result = remove.showAndWait();			
+			
+			//if the user says yes, delete the entity in the end of the arraylist
+			if(result.get() == yes)
+			{
+				entityList.remove(entityCount-1);
+				entityCount--;
+			}
+			else
+			{
+				//nothing
+			}
+		}
+		else
+		{
+			Alert error = new Alert(AlertType.ERROR);
+			error.setHeaderText("No entities to remove");
+			error.showAndWait();
+		}
+	}
+	
+	public static void main(String[] args) {
+		// TODO Auto-generated method stub
+
+		GUI.main(args);
+	}
+
+}
